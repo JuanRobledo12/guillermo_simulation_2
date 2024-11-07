@@ -9,7 +9,9 @@ import os
 import json
 import pandas as pd
 import re
+import time
 
+start_time = time.time()
 # Definir los escenarios de demanda y oferta
 reemplazos_demanda = [
     "ANC02_CLIMIN_ECOACE", "ANC02_CLIMIN_ECODIN", "ANC02_CLIMIN_ECOHIS",
@@ -33,15 +35,20 @@ reemplazos_oferta = [
 ]
 
 # Definir la carpeta de trabajo donde están los archivos CSV
-csv_folder_path = r"C:\Users\guill\OneDrive\Documents\Freelance\FAMM - Plan Hídrico NL\Working Files\model_results_server"
+csv_folder_path = "model_results_server"
 csv_files = [f for f in os.listdir(csv_folder_path) if f.endswith('.csv')]
-
+# print('Amound of csv: ', len(csv_files))
 # Definir la carpeta de salida
-output_folder_base = r"C:\Users\guill\OneDrive\Documents\Freelance\FAMM - Plan Hídrico NL\Working Files\json_RDM"
+output_folder_base = "json_RDM"
+
+# Check if the folder exists, and if not, create it
+if not os.path.exists(output_folder_base):
+    os.makedirs(output_folder_base)
+    print(f"Folder '{output_folder_base}' created.")
 
 # Inicializar contador para las carpetas de salida
 output_folder_counter = 1
-
+print('Generando archivos JSON...')
 # Procesar cada archivo CSV
 for csv_file in csv_files:
     csv_path = os.path.join(csv_folder_path, csv_file)
@@ -60,9 +67,10 @@ for csv_file in csv_files:
     output_folder_counter += 1
 
     # Cargar el archivo JSON base
-    with open(r"C:\Users\guill\OneDrive\Documents\Freelance\FAMM - Plan Hídrico NL\Working Files\OptModel_RDMv1.7.json", "r") as f:
+    with open("OptModel_RDMv1.7.json", "r") as f:
         json_data = json.load(f)
         
+    
     # Generar archivos JSON para cada combinación de oferta y demanda
     for demanda in reemplazos_demanda:
         for oferta in reemplazos_oferta:
@@ -92,4 +100,7 @@ for csv_file in csv_files:
             with open(output_path, "w") as f:
                 json.dump(modified_json, f, indent=4)
             
-            print(f"Archivo generado: {output_path}")
+    print(f"Directorio generado con archivos JSON")      
+print("Proceso terminado!")
+finish_time = time.time()
+print(f"Total execution time: {finish_time - start_time} secs")

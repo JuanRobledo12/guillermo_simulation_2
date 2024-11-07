@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Modified for parallel processing using multiprocessing.
+Created on Mon Sep 30 19:31:23 2024
+
+@author: guill
 """
 
 import os
@@ -15,7 +17,8 @@ import json
 import pandas as pd
 import numpy as np
 import platypus
-from platypus.core import _EvaluateJob, Algorithm, PlatypusConfig, Solution, Variator
+from platypus.core import _EvaluateJob, Algorithm, Solution, Variator
+from platypus.config import PlatypusConfig
 import platypus.evaluator
 from platypus.evaluator import Job, ProcessPoolEvaluator, MultiprocessingEvaluator, MapEvaluator
 from platypus.types import Binary
@@ -25,18 +28,41 @@ import logging
 import copy
 import random
 import pickle
-from multiprocessing import Pool
+import argparse
+import warnings
+warnings.filterwarnings("ignore")
+
+
+start_time = time.time()
 
 json_base_path = 'json_RDM'
 results_path = 'RDM_results'
 
-# Define the working directories
-directorios_trabajo = [f"po{i}" for i in range(1, 973)]
+# Create the argument parser
+parser = argparse.ArgumentParser(description="Script that uses a directory from command line input")
+parser.add_argument('directorio', type=str, help='The directory to be used')
+args = parser.parse_args()
+
+# Use the command-line argument
+directorio = args.directorio
+
+print(f"Executing simulations for directory: {directorio}")
 
 # Crear el directorio de resultados si no existe
 if not os.path.exists(results_path):
     os.makedirs(results_path)
 
+# os.chdir('C:\\Users\\guill\\OneDrive\\Documents\\Freelance\\FAMM - Plan Hídrico NL\\Working Files')
+
+# # Cargar archivos CSV de entrada
+# supply_ts = pd.read_csv("supply.csv", delimiter=";")
+# demand_ts = pd.read_csv("demand.csv", delimiter=";")
+
+# supply_ts['Date'] = pd.to_datetime(supply_ts['Date'], format='%d/%m/%Y', dayfirst=True)
+# demand_ts['Date'] = pd.to_datetime(demand_ts['Date'], format='%d/%m/%Y', dayfirst=True)
+
+# supply_ts.to_csv("supply_corrected.csv", index=False)
+# demand_ts.to_csv("demand_corrected.csv", index=False)
 
 class TimeWindowBinaryParameter(Parameter):
     """A parameter that represents binary decisions (0 or 1) over specific time windows."""
@@ -249,51 +275,38 @@ def extract_and_display_recorders(model, demand_ts):
     recorder_df_with_date = pd.concat([demand_ts_dates, recorder_df], axis=1, join='inner')
     return recorder_df_with_date
 
-def process_directory(directorio):
-    """Function to process each directory in parallel."""
-    dir_path = os.path.join(json_base_path, directorio)
+dir_path = os.path.join(json_base_path, directorio)
 
-    # Check if the directory exists
-    if not os.path.exists(dir_path):
-        print(f"Directory {dir_path} does not exist. Skipping...")
-        return
 
-    # List JSON files in the directory
-    json_files = [f for f in os.listdir(dir_path) if f.endswith('.json')]
+# Verificar si el directorio existe
+if not os.path.exists(dir_path):
+    raise FileNotFoundError(f"El directorio {dir_path} no existe.")
 
-    # Process each JSON file
-    for json_file in json_files:
-        json_file_path = os.path.join(dir_path, json_file)
 
-        try:
-            # Load the model from the JSON file
-            model = Model.load(json_file_path)
+# Listar archivos JSON en el directorio
+json_files = [f for f in os.listdir(dir_path) if f.endswith('.json')]
 
-            # Run the model
-            stats = model.run()
+# Procesar cada archivo JSON
+for json_file in json_files:
+    json_file_path = os.path.join(dir_path, json_file)
 
-            # Convert results to DataFrame
-            results_df = model.to_dataframe()
+    # Cargar el modelo desde el archivo JSON
+    model = Model.load(json_file_path)
 
-            # Create the output CSV filename
-            csv_filename = f"{json_file.replace('.json', '.csv')}"
-            csv_output_path = os.path.join(results_path, csv_filename)
+    # Ejecutar el modelo
+    stats = model.run()
+    # print(f"Modelo ejecutado para {json_file} con estadísticas: {stats}")
 
-            # Save the results to a CSV file
-            results_df.to_csv(csv_output_path, index=False)
-            print(f"Results saved in {csv_output_path}")
+    # Convertir los resultados a DataFrame
+    results_df = model.to_dataframe()
 
-        except Exception as e:
-            print(f"Error processing {json_file_path}: {e}")
+    # Crear el nombre del archivo CSV de salida en results_path
+    csv_filename = f"{json_file.replace('.json', '.csv')}"
+    csv_output_path = os.path.join(results_path, csv_filename)
 
-if __name__ == "__main__":
-    start_time = time.time()
+    # Guardar los resultados en el archivo CSV
+    results_df.to_csv(csv_output_path, index=False)
+    # print(f"Resultados guardados en {csv_output_path}")
 
-    # Number of parallel processes
-    num_processes = 10  # Adjust this number based on your server's capabilities
-
-    with Pool(num_processes) as pool:
-        pool.map(process_directory, directorios_trabajo)
-
-    finish_time = time.time()
-    print(f"Total execution time: {finish_time - start_time} secs")
+finish_time = time.time()
+print(f"Total execution time: {finish_time - start_time} secs")
